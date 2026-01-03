@@ -51,12 +51,12 @@ class ArduinoIDE(QMainWindow):
         # PONTO SEGURO PARA ALTERAÇÃO: Este é o código que aparecerá ao abrir
         initial_code = (
             "def setup():\n"
-            "    pin_mode(13, 'OUTPUT')\n"
+            "    pinMode(13, OUTPUT)\n"
             "\n"
             "def loop():\n"
-            "    digital_write(13, 1)\n"
+            "    digital_write(13, HIGH)\n"
             "    delay(500)\n"
-            "    digital_write(13, 0)\n"
+            "    digital_write(13, LOW)\n"
             "    delay(500)"
         )
         self.code_input.setPlainText(initial_code)
