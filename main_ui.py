@@ -139,7 +139,6 @@ class ArduinoIDE(QMainWindow):
         toolbar.addSeparator()
 
         # Seletor de Porta
-        toolbar.addWidget(QLabel(" PORT: "))
         self.port_combo = QComboBox()
         self.port_combo.setFixedWidth(100)
         self.port_combo.currentTextChanged.connect(self.update_compiler_port)
@@ -173,6 +172,7 @@ class ArduinoIDE(QMainWindow):
         self.serial_console.setReadOnly(True)
         input_container = QHBoxLayout()
         self.serial_input = QLineEdit()
+        self.serial_input.setPlaceholderText("Serial Input - Press Enter to Send")
         self.serial_input.returnPressed.connect(self.send_serial_data)
         self.btn_serial_toggle = QPushButton("CONNECT")
         self.btn_serial_toggle.clicked.connect(self.toggle_serial)
@@ -195,7 +195,7 @@ class ArduinoIDE(QMainWindow):
         self.setStyleSheet("""
             QMainWindow { background-color: #000814; }
             QToolBar { background-color: #001D3D; border: 1px solid #003566; padding: 5px; color: #CAF0F8; }
-            QComboBox { background-color: #001220; color: #00B4D8; border: 1px solid #003566; padding: 2px; }
+            QToolBar QToolButton { color: #00B4D8; font-family: 'Consolas'; font-weight: bold; padding: 5px; }
             QLabel { color: #00B4D8; font-family: 'Consolas'; }
             QTextEdit, QLineEdit { background-color: #001220; color: #CAF0F8; border: 1px solid #003566; font-family: 'Consolas'; }
             QTabWidget::pane { border: 1px solid #003566; background: #000814; }
