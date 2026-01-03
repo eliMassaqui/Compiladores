@@ -1,6 +1,6 @@
 Para entender o que está acontecendo no seu sistema, precisamos olhar para a "mágica" que ocorre entre o momento em que você digita em Python e o LED do seu Arduino começa a piscar.
 
-O processo é dividido em três camadas principais: a Interface, a Tradução e a Comunicação com o Hardware.
+O processo é dividido em três camadas principais: a **Interface, a **Tradução e a **Comunicação com o Hardware.
 
 1. A Camada de Interface (PyQt6)
 Quando você clica no botão, a interface não "congela" porque usamos Multithreading.
