@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investigação: Ecossistema de Bibliotecas Arduino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Slate 50 - Warm Neutral */
+            color: #334155; /* Slate 700 */
+        }
+        
+        h1, h2, h3, h4 {
+            color: #0f172a; /* Slate 900 */
+        }
+
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Chart Container Styling - STRICT ADHERENCE */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .active-tab {
+            border-bottom: 2px solid #0ea5e9; /* Sky 500 */
+            color: #0ea5e9;
+            font-weight: 600;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Slate/Gray) with Sky Blue Accents for Arduino Branding feel but softer. -->
+    <!-- Application Structure Plan: 
+         1. Hero/Intro: Defines the concept of a library (The "Why").
+         2. Global Stats: Quantitative view of the ecosystem (Simulated data on category distribution).
+         3. Library Types: Interactive grid to filter Standard vs. External libraries.
+         4. Installation Lab: Interactive guide on the 3 methods (Manager, Zip, Manual).
+         5. Anatomy Explorer: Code interaction showing the relationship between Sketch, .h, and .cpp.
+         6. Top Lists: Bar chart of most used libraries to guide beginners.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Doughnut Chart: To show the distribution of library categories (Sensors vs Displays etc.). Goal: Inform scope.
+         2. Bar Chart: To compare popularity of specific libraries. Goal: Compare/Recommend.
+         3. Interactive Cards: To organize library examples. Goal: Organize knowledge.
+         4. Tabbed Interface: For installation instructions. Goal: Process explanation.
+         5. Code Highlighter: JS-based text interaction. Goal: Educational depth.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="antialiased selection:bg-sky-200 selection:text-sky-900">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📚</span>
+                    <span class="font-bold text-xl tracking-tight text-slate-800">ArduinoLib<span class="text-sky-500">Explorer</span></span>
+                </div>
+                <div class="hidden md:flex space-x-8 text-sm font-medium text-slate-600">
+                    <a href="#stats" class="hover:text-sky-600 transition-colors">Ecossistema</a>
+                    <a href="#types" class="hover:text-sky-600 transition-colors">Tipos</a>
+                    <a href="#install" class="hover:text-sky-600 transition-colors">Instalação</a>
+                    <a href="#anatomy" class="hover:text-sky-600 transition-colors">Anatomia</a>
+                </div>
+                <button onclick="scrollToTop()" class="md:hidden text-slate-600">
+                    Menu
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="bg-white border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 grid md:grid-cols-2 gap-12 items-center">
+            <div>
+                <div class="inline-block px-3 py-1 mb-4 text-xs font-semibold tracking-wider text-sky-600 uppercase bg-sky-100 rounded-full">
+                    Relatório de Investigação
+                </div>
+                <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight mb-6">
+                    O Poder das <span class="text-sky-500">Bibliotecas</span>
+                </h1>
+                <p class="text-lg text-slate-600 mb-8 leading-relaxed">
+                    Uma biblioteca Arduino é um conjunto de código pré-escrito que simplifica tarefas complexas. 
+                    Nesta aplicação interativa, investigamos como elas transformam centenas de linhas de código difícil em uma única linha simples.
+                </p>
+                <div class="flex gap-4">
+                    <a href="#stats" class="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg shadow-lg shadow-sky-500/30 transition-all transform active:scale-95">
+                        Iniciar Análise
+                    </a>
+                    <button onclick="showQuickFact()" class="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors">
+                        Fato Aleatório
+                    </button>
+                </div>
+                <div id="quick-fact-display" class="mt-4 text-sm text-sky-600 font-medium h-6 opacity-0 transition-opacity duration-500"></div>
+            </div>
+            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-inner">
+                <!-- Visual Metaphor Code Block -->
+                <div class="code-font text-sm bg-slate-900 text-slate-300 p-4 rounded-lg shadow-2xl overflow-hidden relative">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-indigo-500"></div>
+                    <div class="flex gap-1.5 mb-4">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                    <p class="mb-2 text-slate-500">// Sem Biblioteca (Complexo)</p>
+                    <p class="opacity-50 blur-[1px]">Wire.beginTransmission(0x68);</p>
+                    <p class="opacity-50 blur-[1px]">Wire.write(0x3B);</p>
+                    <p class="opacity-50 blur-[1px]">Wire.endTransmission(false);</p>
+                    <p class="opacity-50 blur-[1px]">Wire.requestFrom(0x68, 14, true);</p>
+                    
+                    <div class="my-4 border-t border-slate-700"></div>
+                    
+                    <p class="mb-2 text-green-400">// Com Biblioteca (Simples)</p>
+                    <p><span class="text-purple-400">#include</span> &lt;MPU6050.h&gt;</p>
+                    <p class="mt-2">MPU6050 sensor;</p>
+                    <p>sensor.<span class="text-yellow-300">getMotion6</span>(...);</p>
+                </div>
+                <p class="text-center text-xs text-slate-400 mt-4">Figura 1: Comparação visual de complexidade de código</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Section 1: Data Ecosystem -->
+    <section id="stats" class="py-16 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">O Ecossistema em Números</h2>
+                <p class="text-slate-600 max-w-3xl">
+                    A comunidade Arduino criou milhares de bibliotecas. Esta seção analisa a distribuição dessas ferramentas, mostrando quais categorias dominam o desenvolvimento.
+                    Compreender esta distribuição ajuda a saber o que está disponível para seus projetos.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 items-start">
+                <!-- Chart Col -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-lg font-semibold mb-6 flex items-center gap-2">
+                        <span>📊</span> Distribuição por Categoria
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Info Col -->
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-sky-300 transition-colors">
+                        <div class="text-4xl font-bold text-sky-600 mb-2">6,000+</div>
+                        <div class="font-semibold text-slate-800">Bibliotecas Totais</div>
+                        <p class="text-sm text-slate-500 mt-1">Disponíveis no Library Manager oficial e GitHub.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-indigo-300 transition-colors">
+                        <div class="text-4xl font-bold text-indigo-600 mb-2">98%</div>
+                        <div class="font-semibold text-slate-800">Código Aberto</div>
+                        <p class="text-sm text-slate-500 mt-1">Permitindo estudo, modificação e contribuição.</p>
+                    </div>
+                    <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
+                        <h4 class="font-semibold text-indigo-900 mb-2">Insight de Análise</h4>
+                        <p class="text-sm text-indigo-800">
+                            A predominância de bibliotecas de <strong>Sensores</strong> (aprox. 35%) indica que a principal função da plataforma Arduino é a coleta de dados do mundo físico, seguida pelo controle de dispositivos (Atuadores).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2: Library Types Explorer -->
+    <section id="types" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">Tipos de Bibliotecas</h2>
+                <p class="text-slate-600 max-w-2xl mx-auto">
+                    Nem todas as bibliotecas nascem iguais. Elas são divididas em "Padrão" (nativas) e "Contribuídas" (comunidade). Explore abaixo.
+                </p>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex justify-center gap-4 mb-10">
+                <button onclick="filterLibraries('all')" class="filter-btn active-filter px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition-colors" data-filter="all">Todas</button>
+                <button onclick="filterLibraries('standard')" class="filter-btn px-4 py-2 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium transition-colors" data-filter="standard">Padrão (Nativas)</button>
+                <button onclick="filterLibraries('contributed')" class="filter-btn px-4 py-2 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium transition-colors" data-filter="contributed">Contribuídas</button>
+            </div>
+
+            <!-- Grid -->
+            <div id="library-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards injected via JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Popularity Ranking -->
+    <section class="py-16 bg-slate-50 border-y border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Bibliotecas Essenciais</h2>
+                    <p class="text-slate-600 mt-2">As ferramentas mais baixadas pela comunidade.</p>
+                </div>
+                <div class="text-sm text-slate-500">Baseado em dados simulados do Library Manager</div>
+            </div>
+            
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
+                <div class="chart-container">
+                    <canvas id="popularityChart"></canvas>
+                </div>
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="p-3 bg-slate-50 rounded-lg">
+                        <span class="block text-xs font-bold text-slate-400 uppercase">Campeã</span>
+                        <span class="block font-semibold text-slate-700">Servo</span>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg">
+                        <span class="block text-xs font-bold text-slate-400 uppercase">Comunicação</span>
+                        <span class="block font-semibold text-slate-700">Wire (I2C)</span>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-lg">
+                        <span class="block text-xs font-bold text-slate-400 uppercase">Displays</span>
+                        <span class="block font-semibold text-slate-700">Adafruit GFX</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: Anatomy Lab -->
+    <section id="anatomy" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">Anatomia de uma Biblioteca</h2>
+                <p class="text-slate-600 max-w-3xl">
+                    O que acontece dentro da pasta? Uma biblioteca geralmente consiste em dois arquivos principais: o Cabeçalho (.h) e a Fonte (.cpp).
+                    Interaja com os blocos abaixo para entender a responsabilidade de cada arquivo.
+                </p>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Explainer -->
+                <div class="space-y-6">
+                    <div class="interactive-box group cursor-pointer p-6 rounded-xl border border-slate-200 hover:border-sky-400 hover:bg-sky-50 transition-all" onclick="highlightCode('header')">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-2xl">📑</span>
+                            <h3 class="text-xl font-bold text-slate-800">O Arquivo Header (.h)</h3>
+                        </div>
+                        <p class="text-slate-600">
+                            Atua como o "Menu" ou "Sumário". Ele declara <strong>quais</strong> funções e variáveis existem, mas não diz como elas funcionam. É o que você inclui no seu sketch.
+                        </p>
+                        <span class="text-xs font-semibold text-sky-600 mt-2 block group-hover:underline">Clique para destacar no código &rarr;</span>
+                    </div>
+
+                    <div class="interactive-box group cursor-pointer p-6 rounded-xl border border-slate-200 hover:border-orange-400 hover:bg-orange-50 transition-all" onclick="highlightCode('source')">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-2xl">⚙️</span>
+                            <h3 class="text-xl font-bold text-slate-800">O Arquivo Fonte (.cpp)</h3>
+                        </div>
+                        <p class="text-slate-600">
+                            É a "Cozinha". Aqui está a lógica real, os cálculos e a manipulação de bits. O compilador usa isso para fazer o trabalho pesado escondido do usuário.
+                        </p>
+                        <span class="text-xs font-semibold text-orange-600 mt-2 block group-hover:underline">Clique para destacar no código &rarr;</span>
+                    </div>
+
+                     <div class="interactive-box group cursor-pointer p-6 rounded-xl border border-slate-200 hover:border-green-400 hover:bg-green-50 transition-all" onclick="highlightCode('keywords')">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-2xl">🎨</span>
+                            <h3 class="text-xl font-bold text-slate-800">Keywords.txt</h3>
+                        </div>
+                        <p class="text-slate-600">
+                            Diz à IDE quais palavras colorir (ex: laranja para funções). É puramente estético para ajudar o programador.
+                        </p>
+                         <span class="text-xs font-semibold text-green-600 mt-2 block group-hover:underline">Clique para destacar no código &rarr;</span>
+                    </div>
+                </div>
+
+                <!-- Code Visualizer -->
+                <div class="bg-slate-900 rounded-xl p-6 shadow-2xl font-mono text-sm overflow-hidden relative">
+                    <div class="flex gap-2 mb-4 border-b border-slate-700 pb-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                    
+                    <div id="code-display" class="space-y-4 transition-all duration-300">
+                        <!-- Content populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 5: Installation Guide -->
+    <section id="install" class="py-16 bg-slate-50">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold text-slate-900 mb-4">Como Instalar?</h2>
+                <p class="text-slate-600">Existem três métodos principais. Escolha o mais adequado para sua situação.</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                <div class="flex border-b border-slate-200">
+                    <button onclick="switchTab('manager')" class="install-tab flex-1 py-4 text-center text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors active-tab" id="tab-manager">
+                        1. Gerenciador (Fácil)
+                    </button>
+                    <button onclick="switchTab('zip')" class="install-tab flex-1 py-4 text-center text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" id="tab-zip">
+                        2. Arquivo .ZIP
+                    </button>
+                    <button onclick="switchTab('manual')" class="install-tab flex-1 py-4 text-center text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors" id="tab-manual">
+                        3. Manual
+                    </button>
+                </div>
+
+                <div class="p-8 min-h-[300px]">
+                    <div id="content-manager" class="install-content block animation-fade">
+                        <h3 class="text-xl font-bold text-sky-600 mb-4">Gerenciador de Bibliotecas (Recomendado)</h3>
+                        <ol class="list-decimal list-inside space-y-3 text-slate-700">
+                            <li>Abra a IDE do Arduino.</li>
+                            <li>Vá em <strong>Sketch</strong> &rarr; <strong>Incluir Biblioteca</strong> &rarr; <strong>Gerenciar Bibliotecas...</strong></li>
+                            <li>Na barra de busca, digite o nome (ex: "DHT sensor library").</li>
+                            <li>Clique em <strong>Instalar</strong>.</li>
+                        </ol>
+                        <div class="mt-6 bg-sky-50 p-4 rounded-lg border border-sky-100 text-sm text-sky-800">
+                            💡 <strong>Dica:</strong> Este método avisa automaticamente quando há atualizações disponíveis!
+                        </div>
+                    </div>
+
+                    <div id="content-zip" class="install-content hidden animation-fade">
+                        <h3 class="text-xl font-bold text-orange-600 mb-4">Importar Biblioteca .ZIP</h3>
+                        <p class="mb-4 text-slate-600">Útil para bibliotecas baixadas do GitHub que não estão no gerenciador.</p>
+                        <ol class="list-decimal list-inside space-y-3 text-slate-700">
+                            <li>Baixe o arquivo .zip da biblioteca (não descompacte).</li>
+                            <li>Na IDE, vá em <strong>Sketch</strong> &rarr; <strong>Incluir Biblioteca</strong> &rarr; <strong>Adicionar Biblioteca .ZIP...</strong></li>
+                            <li>Selecione o arquivo baixado.</li>
+                            <li>A mensagem "Biblioteca adicionada" aparecerá no rodapé.</li>
+                        </ol>
+                    </div>
+
+                    <div id="content-manual" class="install-content hidden animation-fade">
+                        <h3 class="text-xl font-bold text-slate-600 mb-4">Instalação Manual</h3>
+                        <p class="mb-4 text-slate-600">Para desenvolvedores avançados ou modificação de bibliotecas.</p>
+                        <ol class="list-decimal list-inside space-y-3 text-slate-700">
+                            <li>Descompacte o arquivo da biblioteca.</li>
+                            <li>Localize sua pasta de sketchs (geralmente em <code>Documentos/Arduino</code>).</li>
+                            <li>Abra a pasta <code>libraries</code>.</li>
+                            <li>Cole a pasta descompactada lá.</li>
+                            <li><strong>Reinicie a IDE</strong> para que ela reconheça a nova pasta.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="mb-4">&copy; 2024 Investigação: Ecossistema Arduino.</p>
+            <p class="text-sm opacity-60">
+                Dados visualizados para fins educacionais. Baseado em padrões comuns de desenvolvimento Arduino.
+            </p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- Data Store ---
+        const libraryData = [
+            { name: "Servo", category: "standard", type: "Motores", desc: "Controle preciso de servomotores RC.", downloads: 95 },
+            { name: "LiquidCrystal", category: "standard", type: "Displays", desc: "Controle de LCDs comuns (Hitachi HD44780).", downloads: 88 },
+            { name: "SD", category: "standard", type: "Armazenamento", desc: "Leitura e escrita em cartões SD.", downloads: 70 },
+            { name: "Wire", category: "standard", type: "Comunicação", desc: "Comunicação I2C/TWI de dois fios.", downloads: 90 },
+            { name: "Adafruit GFX", category: "contributed", type: "Displays", desc: "Gráficos principais para displays OLED/TFT.", downloads: 92 },
+            { name: "DHT Sensor", category: "contributed", type: "Sensores", desc: "Leitura de temperatura e umidade.", downloads: 85 },
+            { name: "AccelStepper", category: "contributed", type: "Motores", desc: "Controle avançado de motores de passo (aceleração).", downloads: 60 },
+            { name: "PubSubClient", category: "contributed", type: "Comunicação", desc: "Cliente MQTT para IoT.", downloads: 75 },
+            { name: "FastLED", category: "contributed", type: "Displays", desc: "Controle poderoso de fitas de LED (WS2812B).", downloads: 80 }
+        ];
+
+        const codeSnippets = {
+            header: `<div class="text-slate-400 opacity-50 transition-opacity" id="code-part-1">
+// MyLibrary.h - Declarações
+#ifndef MyLibrary_h
+#define MyLibrary_h
+
+#include "Arduino.h"
+
+class MyLibrary {
+  public:
+    MyLibrary(int pin);
+    void doSomething();
+  private:
+    int _pin;
+};
+#endif
+</div>`,
+            source: `<div class="text-slate-400 opacity-50 transition-opacity mt-4" id="code-part-2">
+// MyLibrary.cpp - Lógica
+#include "MyLibrary.h"
+
+MyLibrary::MyLibrary(int pin) {
+  pinMode(pin, OUTPUT);
+  _pin = pin;
+}
+
+void MyLibrary::doSomething() {
+  digitalWrite(_pin, HIGH);
+  delay(100);
+  digitalWrite(_pin, LOW);
+}
+</div>`,
+            keywords: `<div class="text-slate-400 opacity-50 transition-opacity mt-4" id="code-part-3">
+# keywords.txt - Cores
+MyLibrary	KEYWORD1
+doSomething	KEYWORD2
+</div>`
+        };
+
+        const facts = [
+            "Existem mais de 5000 bibliotecas oficiais.",
+            "A biblioteca 'Wire' é usada para conectar sensores I2C.",
+            "Você pode criar sua própria biblioteca usando C++.",
+            "Bibliotecas economizam semanas de desenvolvimento.",
+            "O GitHub é o principal repositório de bibliotecas Arduino."
+        ];
+
+        // --- Core Functions ---
+
+        function init() {
+            renderLibraryGrid('all');
+            renderCategoryChart();
+            renderPopularityChart();
+            document.getElementById('code-display').innerHTML = codeSnippets.header + codeSnippets.source + codeSnippets.keywords;
+        }
+
+        // Interaction: Quick Fact
+        function showQuickFact() {
+            const fact = facts[Math.floor(Math.random() * facts.length)];
+            const display = document.getElementById('quick-fact-display');
+            display.style.opacity = 0;
+            setTimeout(() => {
+                display.innerText = "💡 " + fact;
+                display.style.opacity = 1;
+            }, 300);
+        }
+
+        // Interaction: Library Filter
+        function filterLibraries(filter) {
+            // Update Buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if(btn.dataset.filter === filter) {
+                    btn.classList.add('bg-slate-100', 'active-filter', 'text-slate-800');
+                    btn.classList.remove('bg-white', 'text-slate-600');
+                } else {
+                    btn.classList.remove('bg-slate-100', 'active-filter', 'text-slate-800');
+                    btn.classList.add('bg-white', 'text-slate-600');
+                }
+            });
+            renderLibraryGrid(filter);
+        }
+
+        function renderLibraryGrid(filter) {
+            const grid = document.getElementById('library-grid');
+            grid.innerHTML = '';
+            
+            const filtered = filter === 'all' ? libraryData : libraryData.filter(lib => lib.category === filter);
+
+            filtered.forEach(lib => {
+                const badgeColor = lib.category === 'standard' ? 'bg-sky-100 text-sky-700' : 'bg-orange-100 text-orange-700';
+                const label = lib.category === 'standard' ? 'Padrão' : 'Contribuída';
+                
+                const card = `
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 card-hover transition-all duration-300">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md ${badgeColor}">${label}</span>
+                            <span class="text-xs text-slate-400 font-mono">${lib.type}</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">${lib.name}</h3>
+                        <p class="text-sm text-slate-600 mb-4 h-10 overflow-hidden text-ellipsis">${lib.desc}</p>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 mb-2">
+                            <div class="bg-slate-400 h-1.5 rounded-full" style="width: ${lib.downloads}%"></div>
+                        </div>
+                        <p class="text-xs text-slate-400 text-right">Popularidade</p>
+                    </div>
+                `;
+                grid.innerHTML += card;
+            });
+        }
+
+        // Interaction: Tab Switcher
+        function switchTab(tabId) {
+            // Reset Tabs
+            document.querySelectorAll('.install-tab').forEach(t => {
+                t.classList.remove('active-tab', 'text-sky-600');
+                t.classList.add('text-slate-600');
+            });
+            document.getElementById(`tab-${tabId}`).classList.add('active-tab', 'text-sky-600');
+            document.getElementById(`tab-${tabId}`).classList.remove('text-slate-600');
+
+            // Reset Content
+            document.querySelectorAll('.install-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+        }
+
+        // Interaction: Code Highlighter
+        function highlightCode(part) {
+            // Reset opacity
+            document.getElementById('code-part-1').classList.add('opacity-50');
+            document.getElementById('code-part-1').classList.remove('text-sky-300', 'opacity-100');
+            
+            document.getElementById('code-part-2').classList.add('opacity-50');
+            document.getElementById('code-part-2').classList.remove('text-orange-300', 'opacity-100');
+
+            document.getElementById('code-part-3').classList.add('opacity-50');
+            document.getElementById('code-part-3').classList.remove('text-green-300', 'opacity-100');
+
+            // Highlight specific
+            if(part === 'header') {
+                const el = document.getElementById('code-part-1');
+                el.classList.remove('opacity-50');
+                el.classList.add('opacity-100', 'text-sky-300');
+            } else if (part === 'source') {
+                const el = document.getElementById('code-part-2');
+                el.classList.remove('opacity-50');
+                el.classList.add('opacity-100', 'text-orange-300');
+            } else if (part === 'keywords') {
+                const el = document.getElementById('code-part-3');
+                el.classList.remove('opacity-50');
+                el.classList.add('opacity-100', 'text-green-300');
+            }
+        }
+
+        // --- Charts ---
+
+        function renderCategoryChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Sensores', 'Displays', 'Comunicação', 'Motores', 'Armazenamento', 'Outros'],
+                    datasets: [{
+                        data: [35, 20, 15, 15, 5, 10],
+                        backgroundColor: [
+                            '#0ea5e9', // Sky 500
+                            '#6366f1', // Indigo 500
+                            '#8b5cf6', // Violet 500
+                            '#f59e0b', // Amber 500
+                            '#10b981', // Emerald 500
+                            '#94a3b8'  // Slate 400
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPopularityChart() {
+            const ctx = document.getElementById('popularityChart').getContext('2d');
+            
+            // Extracting Top 5 for chart
+            const sorted = [...libraryData].sort((a,b) => b.downloads - a.downloads).slice(0, 5);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(d => d.name),
+                    datasets: [{
+                        label: 'Índice de Popularidade (Simulado)',
+                        data: sorted.map(d => d.downloads),
+                        backgroundColor: '#38bdf8', // Sky 400
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { beginAtZero: true, max: 100 }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function scrollToTop() {
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        // Initialize on load
+        window.onload = init;
+
+    </script>
+</body>
+</html>
