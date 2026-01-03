@@ -6,14 +6,14 @@ import sys
 import serial
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTextEdit, QPushButton, QLabel, QProgressBar, QTabWidget, QLineEdit)
+from PyQt6.QtGui import QTextCursor
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 # --- SERIAL ENGINE ---
 
 class SerialHandler(QThread):
-    """Thread para leitura e escrita na porta USB com feedback de status."""
     data_received = pyqtSignal(str)
-    status_signal = pyqtSignal(bool) # Novo sinal para status da conexão
+    status_signal = pyqtSignal(bool)
 
     def __init__(self, port, baudrate=9600):
         super().__init__()
@@ -26,7 +26,7 @@ class SerialHandler(QThread):
         try:
             self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=0.1)
             self.running = True
-            self.status_signal.emit(True) # Conectado com sucesso
+            self.status_signal.emit(True)
             while self.running:
                 if self.serial_conn.in_waiting > 0:
                     line = self.serial_conn.readline().decode('utf-8', errors='replace').strip()
@@ -36,10 +36,9 @@ class SerialHandler(QThread):
                 self.serial_conn.close()
         except Exception as e:
             self.data_received.emit(f"[ERRO_SERIAL]: {e}")
-            self.status_signal.emit(False) # Falha na conexão
+            self.status_signal.emit(False)
 
     def write(self, data):
-        """Envia dados para o Arduino."""
         if self.serial_conn and self.serial_conn.is_open:
             self.serial_conn.write(data.encode('utf-8'))
 
@@ -89,7 +88,6 @@ class MiniCompiler:
             if isinstance(call.func, ast.Name):
                 name = call.func.id
                 args = [a.value if isinstance(a, ast.Constant) else a.id for a in call.args]
-
                 if name == "pinMode":
                     self.cpp_lines.append(f"  pinMode({args[0]}, {str(args[1]).upper()});")
                 elif name == "digitalWrite":
@@ -144,18 +142,15 @@ class ArduinoIDE(QMainWindow):
 
         self.tabs = QTabWidget()
         
-        # Aba 1: Output (Logs do Sistema)
         self.output_monitor = QTextEdit()
         self.output_monitor.setReadOnly(True)
         self.tabs.addTab(self.output_monitor, "OUTPUT")
 
-        # Aba 2: Serial Monitor (Comunicação Real-time)
         serial_widget = QWidget()
         serial_layout = QVBoxLayout()
         self.serial_console = QTextEdit()
         self.serial_console.setReadOnly(True)
         
-        # Container para Input e Botão Connect
         input_container = QHBoxLayout()
         self.serial_input = QLineEdit()
         self.serial_input.setPlaceholderText("Serial Input - Press Enter to Send")
@@ -193,8 +188,11 @@ class ArduinoIDE(QMainWindow):
             QPushButton { background-color: #003566; color: #CAF0F8; border: 1px solid #00B4D8; padding: 12px; font-weight: bold; }
         """)
 
+    def _auto_scroll(self, widget):
+        """Move o cursor para o final do texto para garantir auto-scroll."""
+        widget.moveCursor(QTextCursor.MoveOperation.End)
+
     def toggle_serial(self):
-        """Liga ou desliga a conexão serial sem compilar."""
         if self.serial_handler and self.serial_handler.isRunning():
             self.serial_handler.stop()
             self.serial_handler.wait()
@@ -203,25 +201,25 @@ class ArduinoIDE(QMainWindow):
             self.start_serial_handler()
 
     def start_process(self):
-        """Lógica de Upload (Fecha a serial se estiver aberta para não dar conflito)."""
         source = self.code_input.toPlainText()
         self.btn_run.setEnabled(False)
         self.output_monitor.clear()
         
-        # Fecha a porta para o arduino-cli poder usar
         if self.serial_handler and self.serial_handler.isRunning():
             self.serial_handler.stop()
             self.serial_handler.wait()
             self.update_serial_status_ui(False)
 
         self.output_monitor.append("[SYS]: Analisando Deep Blue AST...")
+        self._auto_scroll(self.output_monitor)
+        
         cpp = self.compiler.translate(source)
         self.cpp_viewer.setText(cpp)
         
         res = self.compiler.upload(cpp)
         self.output_monitor.append(f"\n[REPORT]:\n{res}")
+        self._auto_scroll(self.output_monitor)
         
-        # Se upload ok, religa a serial automaticamente
         if "SUCESSO" in res or "Sketch uses" in res:
             self.start_serial_handler()
         self.btn_run.setEnabled(True)
@@ -233,7 +231,6 @@ class ArduinoIDE(QMainWindow):
         self.serial_handler.start()
 
     def update_serial_status_ui(self, connected):
-        """Atualiza o visual do botão baseado na conexão."""
         if connected:
             self.btn_serial_toggle.setText("DISCONNECT")
             self.btn_serial_toggle.setStyleSheet("background-color: #023E8A; color: white;")
@@ -242,6 +239,7 @@ class ArduinoIDE(QMainWindow):
             self.btn_serial_toggle.setText("CONNECT")
             self.btn_serial_toggle.setStyleSheet("background-color: #003566; color: #CAF0F8;")
             self.serial_console.append("[SYS]: Disconnected.")
+        self._auto_scroll(self.serial_console)
 
     def send_serial_data(self):
         if self.serial_handler and self.serial_handler.isRunning():
@@ -249,10 +247,12 @@ class ArduinoIDE(QMainWindow):
             if data:
                 self.serial_handler.write(data)
                 self.serial_console.append(f"[SENT]: {data}")
+                self._auto_scroll(self.serial_console)
                 self.serial_input.clear()
 
     def update_serial_console(self, text):
         self.serial_console.append(f"[RECV]: {text}")
+        self._auto_scroll(self.serial_console)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
