@@ -5,8 +5,9 @@ import shutil
 import sys
 import serial
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                             QTextEdit, QPushButton, QLabel, QProgressBar, QTabWidget, QLineEdit)
-from PyQt6.QtGui import QTextCursor
+                             QTextEdit, QPushButton, QLabel, QProgressBar, QTabWidget, 
+                             QLineEdit, QToolBar, QFileDialog)
+from PyQt6.QtGui import QTextCursor, QAction
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 # --- SERIAL ENGINE ---
@@ -120,10 +121,33 @@ class ArduinoIDE(QMainWindow):
         self.setWindowTitle("WANDI ENGINE - DEEP BLUE COMPILER")
         self.compiler = MiniCompiler(port="COM5")
         self.serial_handler = None
+        self.current_file = None
         self.init_ui()
         self.apply_deep_blue_style()
 
     def init_ui(self):
+        # Barra de Ferramentas
+        toolbar = QToolBar("Main Toolbar")
+        self.addToolBar(toolbar)
+
+        new_action = QAction("NEW", self)
+        new_action.triggered.connect(self.new_file)
+        toolbar.addAction(new_action)
+
+        open_action = QAction("OPEN", self)
+        open_action.triggered.connect(self.open_file)
+        toolbar.addAction(open_action)
+
+        save_action = QAction("SAVE", self)
+        save_action.triggered.connect(self.save_file)
+        toolbar.addAction(save_action)
+
+        toolbar.addSeparator()
+
+        run_action = QAction("EXECUTE", self)
+        run_action.triggered.connect(self.start_process)
+        toolbar.addAction(run_action)
+
         layout = QVBoxLayout()
         self.status_label = QLabel("> SYSTEM_STATUS: ONLINE")
         layout.addWidget(self.status_label)
@@ -135,10 +159,6 @@ class ArduinoIDE(QMainWindow):
         self.progress_bar = QProgressBar()
         self.progress_bar.setFixedHeight(6)
         layout.addWidget(self.progress_bar)
-
-        self.btn_run = QPushButton("EXECUTE_DEEP_BLUE_SEQUENCE")
-        self.btn_run.clicked.connect(self.start_process)
-        layout.addWidget(self.btn_run)
 
         self.tabs = QTabWidget()
         
@@ -180,6 +200,8 @@ class ArduinoIDE(QMainWindow):
     def apply_deep_blue_style(self):
         self.setStyleSheet("""
             QMainWindow { background-color: #000814; }
+            QToolBar { background-color: #001D3D; border: 1px solid #003566; padding: 5px; color: #CAF0F8; }
+            QToolBar QToolButton { color: #00B4D8; font-family: 'Consolas'; font-weight: bold; padding: 5px; }
             QLabel { color: #00B4D8; font-family: 'Consolas'; }
             QTextEdit, QLineEdit { background-color: #001220; color: #CAF0F8; border: 1px solid #003566; font-family: 'Consolas'; padding: 5px; }
             QTabWidget::pane { border: 1px solid #003566; background: #000814; }
@@ -188,8 +210,32 @@ class ArduinoIDE(QMainWindow):
             QPushButton { background-color: #003566; color: #CAF0F8; border: 1px solid #00B4D8; padding: 12px; font-weight: bold; }
         """)
 
+    def new_file(self):
+        self.code_input.clear()
+        self.current_file = None
+        self.status_label.setText("> NEW_SESSION_STARTED")
+
+    def open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Deep Blue Source", "", "Python Files (*.py);;All Files (*)")
+        if file_path:
+            with open(file_path, 'r') as f:
+                self.code_input.setPlainText(f.read())
+            self.current_file = file_path
+            self.status_label.setText(f"> LOADED: {os.path.basename(file_path)}")
+
+    def save_file(self):
+        if not self.current_file:
+            file_path, _ = QFileDialog.getSaveFileName(self, "Save Deep Blue Source", "", "Python Files (*.py);;All Files (*)")
+            if file_path:
+                self.current_file = file_path
+            else:
+                return
+
+        with open(self.current_file, 'w') as f:
+            f.write(self.code_input.toPlainText())
+        self.status_label.setText(f"> SAVED: {os.path.basename(self.current_file)}")
+
     def _auto_scroll(self, widget):
-        """Move o cursor para o final do texto para garantir auto-scroll."""
         widget.moveCursor(QTextCursor.MoveOperation.End)
 
     def toggle_serial(self):
@@ -202,7 +248,6 @@ class ArduinoIDE(QMainWindow):
 
     def start_process(self):
         source = self.code_input.toPlainText()
-        self.btn_run.setEnabled(False)
         self.output_monitor.clear()
         
         if self.serial_handler and self.serial_handler.isRunning():
@@ -222,7 +267,6 @@ class ArduinoIDE(QMainWindow):
         
         if "SUCESSO" in res or "Sketch uses" in res:
             self.start_serial_handler()
-        self.btn_run.setEnabled(True)
 
     def start_serial_handler(self):
         self.serial_handler = SerialHandler(port=self.compiler.port)
