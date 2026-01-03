@@ -1,4 +1,3 @@
-import ast
 import subprocess
 import os
 import shutil
@@ -10,6 +9,9 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                              QLineEdit, QToolBar, QFileDialog, QComboBox)
 from PyQt6.QtGui import QTextCursor, QAction
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+
+# IMPORTANDO O TRADUTOR QUE SEPARAMOS
+from translator import DeepBlueTranslator
 
 # --- SERIAL ENGINE ---
 
@@ -52,6 +54,7 @@ class SerialHandler(QThread):
 class MiniCompiler:
     def __init__(self, port="COM5"):
         self.port = port
+        self.translator = DeepBlueTranslator() # INSTANCIANDO O TRADUTOR MODULAR
         user_documents = os.path.join(os.path.expanduser("~"), "Documents")
         self.arduino_tools_dir = os.path.join(user_documents, "Wandi Studio", "Engine", "arduino")
         self.sketch_dir = os.path.join(self.arduino_tools_dir, "build_sketch")
@@ -62,40 +65,10 @@ class MiniCompiler:
             os.path.join(self.arduino_tools_dir, "arduino-cli.exe"),
             os.path.join(os.getcwd(), "arduino-cli.exe"),
         ]
-        self.cpp_lines = []
 
     def translate(self, py_code: str) -> str:
-        try:
-            tree = ast.parse(py_code)
-            self.cpp_lines = ["// Gerado via Wandi Engine - DEEP BLUE SYSTEM", ""]
-            for node in tree.body:
-                if isinstance(node, ast.FunctionDef):
-                    self.cpp_lines.append(f"void {node.name}() {{")
-                    for stmt in node.body:
-                        self._parse_statement(stmt)
-                    self.cpp_lines.append("}\n")
-            return "\n".join(self.cpp_lines)
-        except Exception as e:
-            return f"// ERRO DE SISTEMA: Verifique a IDENTAÇÃO.\n// Detalhe: {e}"
-
-    def _parse_statement(self, stmt):
-        if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
-            call = stmt.value
-            if isinstance(call.func, ast.Name):
-                name = call.func.id
-                args = [a.value if isinstance(a, ast.Constant) else a.id for a in call.args]
-                if name == "pinMode":
-                    self.cpp_lines.append(f"  pinMode({args[0]}, {str(args[1]).upper()});")
-                elif name == "digitalWrite":
-                    status = "HIGH" if str(args[1]).upper() in ["1", "TRUE", "HIGH"] else "LOW"
-                    self.cpp_lines.append(f"  digitalWrite({args[0]}, {status});")
-                elif name == "delay":
-                    self.cpp_lines.append(f"  delay({args[0]});")
-                elif name == "serial_begin":
-                    self.cpp_lines.append(f"  Serial.begin({args[0]});")
-                elif name == "print":
-                    content = f'"{args[0]}"' if isinstance(args[0], str) else args[0]
-                    self.cpp_lines.append(f"  Serial.println({content});")
+        # CHAMANDO A LÓGICA DO MÓDULO EXTERNO
+        return self.translator.translate(py_code)
 
     def upload(self, cpp_code: str):
         cli_bin = self._find_cli()
@@ -130,7 +103,6 @@ class ArduinoIDE(QMainWindow):
         toolbar = QToolBar("Main Toolbar")
         self.addToolBar(toolbar)
 
-        # Ações de Arquivo
         toolbar.addAction(QAction("NEW", self, triggered=self.new_file))
         toolbar.addAction(QAction("OPEN", self, triggered=self.open_file))
         toolbar.addAction(QAction("SAVE", self, triggered=self.save_file))
@@ -138,7 +110,6 @@ class ArduinoIDE(QMainWindow):
         toolbar.addAction(QAction("EXECUTE", self, triggered=self.start_process))
         toolbar.addSeparator()
 
-        # Seletor de Porta
         self.port_combo = QComboBox()
         self.port_combo.setFixedWidth(100)
         self.port_combo.currentTextChanged.connect(self.update_compiler_port)
@@ -165,7 +136,6 @@ class ArduinoIDE(QMainWindow):
         self.output_monitor.setReadOnly(True)
         self.tabs.addTab(self.output_monitor, "OUTPUT")
 
-        # Serial Tab
         serial_widget = QWidget()
         serial_layout = QVBoxLayout()
         self.serial_console = QTextEdit()
