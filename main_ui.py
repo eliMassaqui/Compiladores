@@ -4,9 +4,10 @@ import os
 import shutil
 import sys
 import serial
+import serial.tools.list_ports
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTextEdit, QPushButton, QLabel, QProgressBar, QTabWidget, 
-                             QLineEdit, QToolBar, QFileDialog)
+                             QLineEdit, QToolBar, QFileDialog, QComboBox)
 from PyQt6.QtGui import QTextCursor, QAction
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -63,12 +64,6 @@ class MiniCompiler:
         ]
         self.cpp_lines = []
 
-    def _find_cli(self) -> str:
-        for path in self.possible_cli_paths:
-            if shutil.which(path) or os.path.exists(path):
-                return f'"{path}"' 
-        return None
-
     def translate(self, py_code: str) -> str:
         try:
             tree = ast.parse(py_code)
@@ -113,40 +108,46 @@ class MiniCompiler:
             return process.stdout if process.returncode == 0 else f"ERRO:\n{process.stderr}"
         except Exception as e: return f"FALHA: {e}"
 
-# --- UI ENGINE: DEEP BLUE INTERFACE ---
+    def _find_cli(self) -> str:
+        for path in self.possible_cli_paths:
+            if shutil.which(path) or os.path.exists(path): return f'"{path}"' 
+        return None
+
+# --- UI ENGINE ---
 
 class ArduinoIDE(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("WANDI ENGINE - DEEP BLUE COMPILER")
-        self.compiler = MiniCompiler(port="COM5")
+        self.compiler = MiniCompiler()
         self.serial_handler = None
         self.current_file = None
         self.init_ui()
         self.apply_deep_blue_style()
+        self.refresh_ports()
 
     def init_ui(self):
-        # Barra de Ferramentas
         toolbar = QToolBar("Main Toolbar")
         self.addToolBar(toolbar)
 
-        new_action = QAction("NEW", self)
-        new_action.triggered.connect(self.new_file)
-        toolbar.addAction(new_action)
-
-        open_action = QAction("OPEN", self)
-        open_action.triggered.connect(self.open_file)
-        toolbar.addAction(open_action)
-
-        save_action = QAction("SAVE", self)
-        save_action.triggered.connect(self.save_file)
-        toolbar.addAction(save_action)
-
+        # Ações de Arquivo
+        toolbar.addAction(QAction("NEW", self, triggered=self.new_file))
+        toolbar.addAction(QAction("OPEN", self, triggered=self.open_file))
+        toolbar.addAction(QAction("SAVE", self, triggered=self.save_file))
+        toolbar.addSeparator()
+        toolbar.addAction(QAction("EXECUTE", self, triggered=self.start_process))
         toolbar.addSeparator()
 
-        run_action = QAction("EXECUTE", self)
-        run_action.triggered.connect(self.start_process)
-        toolbar.addAction(run_action)
+        # Seletor de Porta
+        toolbar.addWidget(QLabel(" PORT: "))
+        self.port_combo = QComboBox()
+        self.port_combo.setFixedWidth(100)
+        self.port_combo.currentTextChanged.connect(self.update_compiler_port)
+        toolbar.addWidget(self.port_combo)
+        
+        refresh_action = QAction("🔄", self)
+        refresh_action.triggered.connect(self.refresh_ports)
+        toolbar.addAction(refresh_action)
 
         layout = QVBoxLayout()
         self.status_label = QLabel("> SYSTEM_STATUS: ONLINE")
@@ -161,35 +162,28 @@ class ArduinoIDE(QMainWindow):
         layout.addWidget(self.progress_bar)
 
         self.tabs = QTabWidget()
-        
         self.output_monitor = QTextEdit()
         self.output_monitor.setReadOnly(True)
         self.tabs.addTab(self.output_monitor, "OUTPUT")
 
+        # Serial Tab
         serial_widget = QWidget()
         serial_layout = QVBoxLayout()
         self.serial_console = QTextEdit()
         self.serial_console.setReadOnly(True)
-        
         input_container = QHBoxLayout()
         self.serial_input = QLineEdit()
-        self.serial_input.setPlaceholderText("Serial Input - Press Enter to Send")
         self.serial_input.returnPressed.connect(self.send_serial_data)
-        
         self.btn_serial_toggle = QPushButton("CONNECT")
-        self.btn_serial_toggle.setFixedWidth(120)
         self.btn_serial_toggle.clicked.connect(self.toggle_serial)
-        
         input_container.addWidget(self.serial_input)
         input_container.addWidget(self.btn_serial_toggle)
-        
         serial_layout.addWidget(self.serial_console)
         serial_layout.addLayout(input_container)
         serial_widget.setLayout(serial_layout)
         self.tabs.addTab(serial_widget, "SERIAL MONITOR")
 
         self.cpp_viewer = QTextEdit()
-        self.cpp_viewer.setReadOnly(True)
         self.tabs.addTab(self.cpp_viewer, "WIRING_SOURCE")
         layout.addWidget(self.tabs)
 
@@ -201,42 +195,43 @@ class ArduinoIDE(QMainWindow):
         self.setStyleSheet("""
             QMainWindow { background-color: #000814; }
             QToolBar { background-color: #001D3D; border: 1px solid #003566; padding: 5px; color: #CAF0F8; }
-            QToolBar QToolButton { color: #00B4D8; font-family: 'Consolas'; font-weight: bold; padding: 5px; }
+            QComboBox { background-color: #001220; color: #00B4D8; border: 1px solid #003566; padding: 2px; }
             QLabel { color: #00B4D8; font-family: 'Consolas'; }
-            QTextEdit, QLineEdit { background-color: #001220; color: #CAF0F8; border: 1px solid #003566; font-family: 'Consolas'; padding: 5px; }
+            QTextEdit, QLineEdit { background-color: #001220; color: #CAF0F8; border: 1px solid #003566; font-family: 'Consolas'; }
             QTabWidget::pane { border: 1px solid #003566; background: #000814; }
             QTabBar::tab { background: #001D3D; color: #00B4D8; padding: 10px; border: 1px solid #003566; }
-            QTabBar::tab:selected { background: #003566; color: white; border-bottom: 2px solid #ADE8F4; }
-            QPushButton { background-color: #003566; color: #CAF0F8; border: 1px solid #00B4D8; padding: 12px; font-weight: bold; }
+            QTabBar::tab:selected { background: #003566; color: white; }
+            QPushButton { background-color: #003566; color: #CAF0F8; border: 1px solid #00B4D8; padding: 10px; font-weight: bold; }
         """)
+
+    def refresh_ports(self):
+        self.port_combo.clear()
+        ports = [port.device for port in serial.tools.list_ports.comports()]
+        self.port_combo.addItems(ports)
+        if not ports:
+            self.status_label.setText("> NO_DEVICE_DETECTED")
+        else:
+            self.status_label.setText(f"> {len(ports)} PORT(S) FOUND")
+
+    def update_compiler_port(self, port_name):
+        self.compiler.port = port_name
 
     def new_file(self):
         self.code_input.clear()
         self.current_file = None
-        self.status_label.setText("> NEW_SESSION_STARTED")
 
     def open_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Deep Blue Source", "", "Python Files (*.py);;All Files (*)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Source", "", "Python Files (*.py)")
         if file_path:
-            with open(file_path, 'r') as f:
-                self.code_input.setPlainText(f.read())
+            with open(file_path, 'r') as f: self.code_input.setPlainText(f.read())
             self.current_file = file_path
-            self.status_label.setText(f"> LOADED: {os.path.basename(file_path)}")
 
     def save_file(self):
         if not self.current_file:
-            file_path, _ = QFileDialog.getSaveFileName(self, "Save Deep Blue Source", "", "Python Files (*.py);;All Files (*)")
-            if file_path:
-                self.current_file = file_path
-            else:
-                return
-
-        with open(self.current_file, 'w') as f:
-            f.write(self.code_input.toPlainText())
-        self.status_label.setText(f"> SAVED: {os.path.basename(self.current_file)}")
-
-    def _auto_scroll(self, widget):
-        widget.moveCursor(QTextCursor.MoveOperation.End)
+            file_path, _ = QFileDialog.getSaveFileName(self, "Save Source", "", "Python Files (*.py)")
+            if file_path: self.current_file = file_path
+            else: return
+        with open(self.current_file, 'w') as f: f.write(self.code_input.toPlainText())
 
     def toggle_serial(self):
         if self.serial_handler and self.serial_handler.isRunning():
@@ -247,56 +242,48 @@ class ArduinoIDE(QMainWindow):
             self.start_serial_handler()
 
     def start_process(self):
-        source = self.code_input.toPlainText()
-        self.output_monitor.clear()
+        if not self.compiler.port:
+            self.output_monitor.append("[ERR]: Nenhuma porta selecionada!")
+            return
         
         if self.serial_handler and self.serial_handler.isRunning():
             self.serial_handler.stop()
             self.serial_handler.wait()
             self.update_serial_status_ui(False)
 
-        self.output_monitor.append("[SYS]: Analisando Deep Blue AST...")
-        self._auto_scroll(self.output_monitor)
-        
-        cpp = self.compiler.translate(source)
+        self.output_monitor.append(f"[SYS]: Iniciando em {self.compiler.port}...")
+        cpp = self.compiler.translate(self.code_input.toPlainText())
         self.cpp_viewer.setText(cpp)
-        
         res = self.compiler.upload(cpp)
         self.output_monitor.append(f"\n[REPORT]:\n{res}")
-        self._auto_scroll(self.output_monitor)
-        
-        if "SUCESSO" in res or "Sketch uses" in res:
+        if "SUCESSO" in res or "Sketch" in res:
             self.start_serial_handler()
 
     def start_serial_handler(self):
-        self.serial_handler = SerialHandler(port=self.compiler.port)
-        self.serial_handler.data_received.connect(self.update_serial_console)
-        self.serial_handler.status_signal.connect(self.update_serial_status_ui)
-        self.serial_handler.start()
+        if self.compiler.port:
+            self.serial_handler = SerialHandler(port=self.compiler.port)
+            self.serial_handler.data_received.connect(self.update_serial_console)
+            self.serial_handler.status_signal.connect(self.update_serial_status_ui)
+            self.serial_handler.start()
 
     def update_serial_status_ui(self, connected):
         if connected:
             self.btn_serial_toggle.setText("DISCONNECT")
-            self.btn_serial_toggle.setStyleSheet("background-color: #023E8A; color: white;")
-            self.serial_console.append("[SYS]: Connected to Serial Port.")
+            self.serial_console.append(f"[SYS]: Connected to {self.compiler.port}")
         else:
             self.btn_serial_toggle.setText("CONNECT")
-            self.btn_serial_toggle.setStyleSheet("background-color: #003566; color: #CAF0F8;")
             self.serial_console.append("[SYS]: Disconnected.")
-        self._auto_scroll(self.serial_console)
 
     def send_serial_data(self):
         if self.serial_handler and self.serial_handler.isRunning():
             data = self.serial_input.text()
-            if data:
-                self.serial_handler.write(data)
-                self.serial_console.append(f"[SENT]: {data}")
-                self._auto_scroll(self.serial_console)
-                self.serial_input.clear()
+            self.serial_handler.write(data)
+            self.serial_console.append(f"[SENT]: {data}")
+            self.serial_input.clear()
 
     def update_serial_console(self, text):
         self.serial_console.append(f"[RECV]: {text}")
-        self._auto_scroll(self.serial_console)
+        self.serial_console.moveCursor(QTextCursor.MoveOperation.End)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
