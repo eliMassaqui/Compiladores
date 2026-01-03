@@ -22,7 +22,6 @@ class SerialReader(QThread):
 
     def run(self):
         try:
-            # Tenta abrir a conexão serial
             ser = serial.Serial(self.port, self.baudrate, timeout=0.1)
             self.running = True
             while self.running:
@@ -77,7 +76,6 @@ class MiniCompiler:
             return f"// ERRO DE SISTEMA: Verifique a IDENTAÇÃO ou Sintaxe.\n// Detalhe: {e}"
 
     def _parse_statement(self, stmt):
-        """Mapeia os comandos respeitando sua lógica original e adicionando Serial."""
         if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
             call = stmt.value
             if isinstance(call.func, ast.Name):
@@ -89,7 +87,6 @@ class MiniCompiler:
                     elif isinstance(a, ast.Name):
                         args.append(a.id)
 
-                # Mapeamento Wiring (Original + Novos)
                 if name == "pinMode":
                     mode = str(args[1]).upper()
                     self.cpp_lines.append(f"  pinMode({args[0]}, {mode});")
@@ -102,7 +99,6 @@ class MiniCompiler:
                 elif name == "serial_begin":
                     self.cpp_lines.append(f"  Serial.begin({args[0]});")
                 elif name == "print":
-                    # Tradução de print do Python para Serial.println do Arduino
                     content = f'"{args[0]}"' if isinstance(args[0], str) and args[0] not in ["HIGH", "LOW", "INPUT", "OUTPUT"] else args[0]
                     self.cpp_lines.append(f"  Serial.println({content});")
 
@@ -117,8 +113,8 @@ class MiniCompiler:
         command = f'{cli_bin} compile --upload -p {self.port} -b arduino:avr:uno "{self.sketch_dir}"'
         try:
             process = subprocess.run(command, shell=True, capture_output=True, text=True)
-            return process.stdout if process.returncode == 0 else f"ERRO:\n{process.stderr}"
-        except Exception as e: return f"FALHA: {e}"
+            return process.stdout if process.returncode == 0 else f"ERRO NA GRAVAÇÃO:\n{process.stderr}"
+        except Exception as e: return f"FALHA CRÍTICA: {e}"
 
 # --- UI ENGINE: DEEP BLUE INTERFACE ---
 
@@ -160,15 +156,16 @@ class ArduinoIDE(QMainWindow):
         self.btn_run.clicked.connect(self.start_process)
         layout.addWidget(self.btn_run)
 
-        # Sistema de Abas
         self.tabs = QTabWidget()
+        
+        # Aba Output agora centraliza tudo
+        self.output_monitor = QTextEdit()
+        self.output_monitor.setReadOnly(True)
+        self.tabs.addTab(self.output_monitor, "OUTPUT")
+
         self.console = QTextEdit()
         self.console.setReadOnly(True)
         self.tabs.addTab(self.console, "DEEP_BLUE_LOG")
-
-        self.output_monitor = QTextEdit()
-        self.output_monitor.setReadOnly(True)
-        self.tabs.addTab(self.output_monitor, "OUTPUT") # Nova aba Output
 
         self.cpp_viewer = QTextEdit()
         self.cpp_viewer.setReadOnly(True)
@@ -195,20 +192,22 @@ class ArduinoIDE(QMainWindow):
         source = self.code_input.toPlainText()
         self.btn_run.setEnabled(False)
         self.output_monitor.clear()
+        self.tabs.setCurrentIndex(0) # Foca na aba OUTPUT
         
-        # Para o monitor serial antes de gravar para liberar a porta
         if self.serial_thread and self.serial_thread.isRunning():
             self.serial_thread.stop()
             self.serial_thread.wait()
 
-        self.worker = QThread() # Thread simples para upload
+        self.output_monitor.append("[SYS]: Iniciando Analisador Deep Blue...")
         cpp = self.compiler.translate(source)
         self.cpp_viewer.setText(cpp)
         
+        self.output_monitor.append("[SYS]: Transmitindo Sequência para Hardware...")
         res = self.compiler.upload(cpp)
-        self.console.append(res)
         
-        # Inicia leitura da aba OUTPUT após sucesso
+        # Centralizando o resultado do upload no Output
+        self.output_monitor.append(f"\n[FINAL_REPORT]:\n{res}")
+        
         if "SUCESSO" in res or "Sketch uses" in res:
             self.start_serial_monitor()
         
