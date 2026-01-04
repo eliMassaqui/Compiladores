@@ -113,7 +113,7 @@ class WandiIDE(QMainWindow):
         toolbar.addSeparator()
 
         self.port_combo = QComboBox()
-        self.port_combo.setFixedWidth(150)
+        self.port_combo.setFixedWidth(100)
         self.port_combo.currentTextChanged.connect(self.update_compiler_port)
         toolbar.addWidget(self.port_combo)
         
