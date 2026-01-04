@@ -124,7 +124,7 @@ class ArduinoIDE(QMainWindow):
         layout.addWidget(self.status_label)
 
         self.code_input = QTextEdit()
-        self.code_input.setPlainText("def setup():\n    serial_begin(9600)\n\ndef loop():\n    delay(100)")
+        self.code_input.setPlainText("def setup():\n    pass\n\ndef loop():\n    pass")
         layout.addWidget(self.code_input)
 
         self.progress_bar = QProgressBar()
