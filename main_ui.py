@@ -7,7 +7,7 @@ import serial.tools.list_ports
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTextEdit, QPushButton, QLabel, QProgressBar, QTabWidget, 
                              QLineEdit, QToolBar, QFileDialog, QComboBox)
-from PyQt6.QtGui import QTextCursor, QAction
+from PyQt6.QtGui import QTextCursor, QAction, QIcon
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 # IMPORTANDO O TRADUTOR QUE SEPARAMOS
@@ -88,10 +88,12 @@ class MiniCompiler:
 
 # --- UI ENGINE ---
 
-class ArduinoIDE(QMainWindow):
+class WandiIDE(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("WANDI ENGINE - DEEP BLUE COMPILER")
+        self.setWindowTitle("WANDI STUDIO - MINI IDE")
+        caminho_icone = os.path.join(os.path.dirname(__file__), "wandi.png")
+        self.setWindowIcon(QIcon(caminho_icone))
         self.compiler = MiniCompiler()
         self.serial_handler = None
         self.current_file = None
@@ -103,15 +105,15 @@ class ArduinoIDE(QMainWindow):
         toolbar = QToolBar("Main Toolbar")
         self.addToolBar(toolbar)
 
-        toolbar.addAction(QAction("NEW", self, triggered=self.new_file))
-        toolbar.addAction(QAction("OPEN", self, triggered=self.open_file))
-        toolbar.addAction(QAction("SAVE", self, triggered=self.save_file))
+        toolbar.addAction(QAction("NOVO", self, triggered=self.new_file))
+        toolbar.addAction(QAction("ABRIR", self, triggered=self.open_file))
+        toolbar.addAction(QAction("SALVAR", self, triggered=self.save_file))
         toolbar.addSeparator()
-        toolbar.addAction(QAction("EXECUTE", self, triggered=self.start_process))
+        toolbar.addAction(QAction("EXECUTAR", self, triggered=self.start_process))
         toolbar.addSeparator()
 
         self.port_combo = QComboBox()
-        self.port_combo.setFixedWidth(100)
+        self.port_combo.setFixedWidth(150)
         self.port_combo.currentTextChanged.connect(self.update_compiler_port)
         toolbar.addWidget(self.port_combo)
         
@@ -142,9 +144,9 @@ class ArduinoIDE(QMainWindow):
         self.serial_console.setReadOnly(True)
         input_container = QHBoxLayout()
         self.serial_input = QLineEdit()
-        self.serial_input.setPlaceholderText("Serial Input - Press Enter to Send")
+        self.serial_input.setPlaceholderText("Serial Input - Digite caracteres pra enviar ao Arduino")
         self.serial_input.returnPressed.connect(self.send_serial_data)
-        self.btn_serial_toggle = QPushButton("CONNECT")
+        self.btn_serial_toggle = QPushButton("Conectar")
         self.btn_serial_toggle.clicked.connect(self.toggle_serial)
         input_container.addWidget(self.serial_input)
         input_container.addWidget(self.btn_serial_toggle)
@@ -181,7 +183,7 @@ class ArduinoIDE(QMainWindow):
         if not ports:
             self.status_label.setText("> NO_DEVICE_DETECTED")
         else:
-            self.status_label.setText(f"> {len(ports)} PORT(S) FOUND")
+            self.status_label.setText(f"> {len(ports)} PORTAS ENCONTRADAS")
 
     def update_compiler_port(self, port_name):
         self.compiler.port = port_name
@@ -191,14 +193,14 @@ class ArduinoIDE(QMainWindow):
         self.current_file = None
 
     def open_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Source", "", "Python Files (*.py)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Código aberto", "", "Python Files (*.py)")
         if file_path:
             with open(file_path, 'r') as f: self.code_input.setPlainText(f.read())
             self.current_file = file_path
 
     def save_file(self):
         if not self.current_file:
-            file_path, _ = QFileDialog.getSaveFileName(self, "Save Source", "", "Python Files (*.py)")
+            file_path, _ = QFileDialog.getSaveFileName(self, "Código salvo", "", "Python Files (*.py)")
             if file_path: self.current_file = file_path
             else: return
         with open(self.current_file, 'w') as f: f.write(self.code_input.toPlainText())
@@ -257,6 +259,6 @@ class ArduinoIDE(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = ArduinoIDE()
-    window.show()
+    window = WandiIDE()
+    window.showMaximized()
     sys.exit(app.exec())
