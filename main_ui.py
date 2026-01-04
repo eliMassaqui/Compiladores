@@ -13,79 +13,6 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 # IMPORTANDO O TRADUTOR QUE SEPARAMOS
 from translator import DeepBlueTranslator
 
-# --- SERIAL ENGINE ---
-
-class SerialHandler(QThread):
-    data_received = pyqtSignal(str)
-    status_signal = pyqtSignal(bool)
-
-    def __init__(self, port, baudrate=9600):
-        super().__init__()
-        self.port = port
-        self.baudrate = baudrate
-        self.running = False
-        self.serial_conn = None
-
-    def run(self):
-        try:
-            self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=0.1)
-            self.running = True
-            self.status_signal.emit(True)
-            while self.running:
-                if self.serial_conn.in_waiting > 0:
-                    line = self.serial_conn.readline().decode('utf-8', errors='replace').strip()
-                    if line:
-                        self.data_received.emit(line)
-            if self.serial_conn:
-                self.serial_conn.close()
-        except Exception as e:
-            self.data_received.emit(f"[ERRO_SERIAL]: {e}")
-            self.status_signal.emit(False)
-
-    def write(self, data):
-        if self.serial_conn and self.serial_conn.is_open:
-            self.serial_conn.write(data.encode('utf-8'))
-
-    def stop(self):
-        self.running = False
-
-# --- CORE ENGINE: COMPILER ---
-
-class MiniCompiler:
-    def __init__(self, port="COM5"):
-        self.port = port
-        self.translator = DeepBlueTranslator() # INSTANCIANDO O TRADUTOR MODULAR
-        user_documents = os.path.join(os.path.expanduser("~"), "Documents")
-        self.arduino_tools_dir = os.path.join(user_documents, "Wandi Studio", "Engine", "arduino")
-        self.sketch_dir = os.path.join(self.arduino_tools_dir, "build_sketch")
-        self.ino_path = os.path.join(self.sketch_dir, "build_sketch.ino")
-        
-        self.possible_cli_paths = [
-            "arduino-cli",
-            os.path.join(self.arduino_tools_dir, "arduino-cli.exe"),
-            os.path.join(os.getcwd(), "arduino-cli.exe"),
-        ]
-
-    def translate(self, py_code: str) -> str:
-        # CHAMANDO A LÓGICA DO MÓDULO EXTERNO
-        return self.translator.translate(py_code)
-
-    def upload(self, cpp_code: str):
-        cli_bin = self._find_cli()
-        if not cli_bin: return "ERRO: CLI não encontrado."
-        if not os.path.exists(self.sketch_dir): os.makedirs(self.sketch_dir, exist_ok=True)
-        with open(self.ino_path, "w") as f: f.write(cpp_code)
-        command = f'{cli_bin} compile --upload -p {self.port} -b arduino:avr:uno "{self.sketch_dir}"'
-        try:
-            process = subprocess.run(command, shell=True, capture_output=True, text=True)
-            return process.stdout if process.returncode == 0 else f"ERRO:\n{process.stderr}"
-        except Exception as e: return f"FALHA: {e}"
-
-    def _find_cli(self) -> str:
-        for path in self.possible_cli_paths:
-            if shutil.which(path) or os.path.exists(path): return f'"{path}"' 
-        return None
-
 # --- UI ENGINE ---
 
 class WandiIDE(QMainWindow):
@@ -256,6 +183,80 @@ class WandiIDE(QMainWindow):
     def update_serial_console(self, text):
         self.serial_console.append(f"[RECV]: {text}")
         self.serial_console.moveCursor(QTextCursor.MoveOperation.End)
+
+# --- SERIAL ENGINE ---
+
+class SerialHandler(QThread):
+    data_received = pyqtSignal(str)
+    status_signal = pyqtSignal(bool)
+
+    def __init__(self, port, baudrate=9600):
+        super().__init__()
+        self.port = port
+        self.baudrate = baudrate
+        self.running = False
+        self.serial_conn = None
+
+    def run(self):
+        try:
+            self.serial_conn = serial.Serial(self.port, self.baudrate, timeout=0.1)
+            self.running = True
+            self.status_signal.emit(True)
+            while self.running:
+                if self.serial_conn.in_waiting > 0:
+                    line = self.serial_conn.readline().decode('utf-8', errors='replace').strip()
+                    if line:
+                        self.data_received.emit(line)
+            if self.serial_conn:
+                self.serial_conn.close()
+        except Exception as e:
+            self.data_received.emit(f"[ERRO_SERIAL]: {e}")
+            self.status_signal.emit(False)
+
+    def write(self, data):
+        if self.serial_conn and self.serial_conn.is_open:
+            self.serial_conn.write(data.encode('utf-8'))
+
+    def stop(self):
+        self.running = False
+
+# --- CORE ENGINE: COMPILER ---
+
+class MiniCompiler:
+    def __init__(self, port="COM5"):
+        self.port = port
+        self.translator = DeepBlueTranslator() # INSTANCIANDO O TRADUTOR MODULAR
+        user_documents = os.path.join(os.path.expanduser("~"), "Documents")
+        self.arduino_tools_dir = os.path.join(user_documents, "Wandi Studio", "Engine", "arduino")
+        self.sketch_dir = os.path.join(self.arduino_tools_dir, "build_sketch")
+        self.ino_path = os.path.join(self.sketch_dir, "build_sketch.ino")
+        
+        self.possible_cli_paths = [
+            "arduino-cli",
+            os.path.join(self.arduino_tools_dir, "arduino-cli.exe"),
+            os.path.join(os.getcwd(), "arduino-cli.exe"),
+        ]
+
+    def translate(self, py_code: str) -> str:
+        # CHAMANDO A LÓGICA DO MÓDULO EXTERNO
+        return self.translator.translate(py_code)
+
+    def upload(self, cpp_code: str):
+        cli_bin = self._find_cli()
+        if not cli_bin: return "ERRO: CLI não encontrado."
+        if not os.path.exists(self.sketch_dir): os.makedirs(self.sketch_dir, exist_ok=True)
+        with open(self.ino_path, "w") as f: f.write(cpp_code)
+        command = f'{cli_bin} compile --upload -p {self.port} -b arduino:avr:uno "{self.sketch_dir}"'
+        try:
+            process = subprocess.run(command, shell=True, capture_output=True, text=True)
+            return process.stdout if process.returncode == 0 else f"ERRO:\n{process.stderr}"
+        except Exception as e: return f"FALHA: {e}"
+
+    def _find_cli(self) -> str:
+        for path in self.possible_cli_paths:
+            if shutil.which(path) or os.path.exists(path): return f'"{path}"' 
+        return None
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
