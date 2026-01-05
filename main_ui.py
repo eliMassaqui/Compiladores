@@ -1,9 +1,13 @@
-import subprocess
-import os
-import shutil
-import sys
+import subprocess # Executar o arduino-cli
+import os # Caminhos, pastas, sistema
+import shutil # Localizar executáveis
+import sys # Argumentos e loop do Qt
+
+# Comunicação serial
 import serial
 import serial.tools.list_ports
+
+# PyQt6 – Interface gráfica
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTextEdit, QPushButton, QLabel, QProgressBar, QTabWidget, 
                              QLineEdit, QToolBar, QFileDialog, QComboBox)
@@ -13,11 +17,12 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 # IMPORTANDO O TRADUTOR QUE SEPARAMOS
 from translator import DeepBlueTranslator
 
-# --- UI ENGINE ---
-
+# --- UI ENGINE --- Essa classe é o cérebro visual da IDE
 class WandiIDE(QMainWindow):
-    def __init__(self):
+    def __init__(self): # Inicialização
         super().__init__()
+
+        # Definições como Título - Ícone - Inicializa compilador - Inicializa UI - Aplica tema - Busca portas USB
         self.setWindowTitle("WANDI STUDIO - MINI IDE")
         caminho_icone = os.path.join(os.path.dirname(__file__), "wandi.png")
         self.setWindowIcon(QIcon(caminho_icone))
@@ -28,6 +33,7 @@ class WandiIDE(QMainWindow):
         self.apply_deep_blue_style()
         self.refresh_ports()
 
+    # Toolbar (botões superiores)
     def init_ui(self):
         toolbar = QToolBar("Main Toolbar")
         self.addToolBar(toolbar)
@@ -39,6 +45,7 @@ class WandiIDE(QMainWindow):
         toolbar.addAction(QAction("EXECUTAR", self, triggered=self.start_process))
         toolbar.addSeparator()
 
+        # ComboBox de portas
         self.port_combo = QComboBox()
         self.port_combo.setFixedWidth(100)
         self.port_combo.currentTextChanged.connect(self.update_compiler_port)
@@ -52,10 +59,13 @@ class WandiIDE(QMainWindow):
         self.status_label = QLabel("> SYSTEM_STATUS: ONLINE")
         layout.addWidget(self.status_label)
 
+
+        # Editor de código
         self.code_input = QTextEdit()
         self.code_input.setPlainText("def setup():\n    pass\n\ndef loop():\n    pass")
         layout.addWidget(self.code_input)
 
+        # Abas (Tabs)
         self.tabs = QTabWidget()
         self.output_monitor = QTextEdit()
         self.output_monitor.setReadOnly(True)
@@ -77,6 +87,8 @@ class WandiIDE(QMainWindow):
         serial_layout.addWidget(self.serial_console)
         serial_widget.setLayout(serial_layout)
         self.tabs.addTab(serial_widget, "SERIAL MONITOR")
+
+
 
         self.cpp_viewer = QTextEdit()
         self.tabs.addTab(self.cpp_viewer, "WIRING_SOURCE")
@@ -199,8 +211,8 @@ class WandiIDE(QMainWindow):
         self.serial_console.append(f"[RECEBIDO]: {text}")
         self.serial_console.moveCursor(QTextCursor.MoveOperation.End)
 
-# --- SERIAL ENGINE ---
 
+# --- SERIAL ENGINE ---
 class SerialHandler(QThread):
     data_received = pyqtSignal(str)
     status_signal = pyqtSignal(bool)
@@ -235,8 +247,8 @@ class SerialHandler(QThread):
     def stop(self):
         self.running = False
 
-# --- CORE ENGINE: COMPILER ---
 
+# --- CORE ENGINE: COMPILER ---
 class MiniCompiler:
     def __init__(self, port="COM5"):
         self.port = port
