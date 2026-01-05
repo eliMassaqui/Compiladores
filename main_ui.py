@@ -115,12 +115,30 @@ class WandiIDE(QMainWindow):
     def update_compiler_port(self, port_name):
         self.compiler.port = port_name
 
+
+     # Gerenciador de arquivos
+    def obter_caminho_padrao_wandi(self):
+        """
+        Gera o caminho padrão: Documentos/Wandi Studio/Wandi Code.
+        Cria as pastas caso elas não existam no PC atual.
+        """
+        # os.path.expanduser("~") aponta para C:\Users\NOME_DO_USER
+        documentos = os.path.join(os.path.expanduser("~"), "Documents")
+        caminho_wandi = os.path.join(documentos, "Wandi Studio", "Wandi Code")
+        
+        # Cria as pastas se não existirem para evitar erro de 'caminho não encontrado'
+        if not os.path.exists(caminho_wandi):
+            os.makedirs(caminho_wandi)
+            
+        return caminho_wandi
+
     def new_file(self):
         self.code_input.clear()
         self.current_file = None
 
     def open_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Código aberto", "", "Python Files (*.py)")
+        caminho_inicial = self.obter_caminho_padrao_wandi()
+        file_path, _ = QFileDialog.getOpenFileName(self, "Código aberto", caminho_inicial, "Python Files (*.py)")
         if file_path:
             with open(file_path, 'r') as f: self.code_input.setPlainText(f.read())
             self.current_file = file_path
