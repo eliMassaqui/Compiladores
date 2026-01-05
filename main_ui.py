@@ -56,10 +56,6 @@ class WandiIDE(QMainWindow):
         self.code_input.setPlainText("def setup():\n    pass\n\ndef loop():\n    pass")
         layout.addWidget(self.code_input)
 
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setFixedHeight(6)
-        layout.addWidget(self.progress_bar)
-
         self.tabs = QTabWidget()
         self.output_monitor = QTextEdit()
         self.output_monitor.setReadOnly(True)
@@ -75,10 +71,10 @@ class WandiIDE(QMainWindow):
         self.serial_input.returnPressed.connect(self.send_serial_data)
         self.btn_serial_toggle = QPushButton("Conectar")
         self.btn_serial_toggle.clicked.connect(self.toggle_serial)
+        serial_layout.addLayout(input_container)
         input_container.addWidget(self.serial_input)
         input_container.addWidget(self.btn_serial_toggle)
         serial_layout.addWidget(self.serial_console)
-        serial_layout.addLayout(input_container)
         serial_widget.setLayout(serial_layout)
         self.tabs.addTab(serial_widget, "SERIAL MONITOR")
 
@@ -98,9 +94,9 @@ class WandiIDE(QMainWindow):
             QLabel { color: #00B4D8; font-family: 'Consolas'; }
             QTextEdit, QLineEdit { background-color: #001220; color: #CAF0F8; border: 1px solid #003566; font-family: 'Consolas'; }
             QTabWidget::pane { border: 1px solid #003566; background: #000814; }
-            QTabBar::tab { background: #001D3D; color: #00B4D8; padding: 10px; border: 1px solid #003566; }
+            QTabBar::tab { background: #001D3D; color: #00B4D8; padding: 8px; border: 1px solid #003566; }
             QTabBar::tab:selected { background: #003566; color: white; }
-            QPushButton { background-color: #003566; color: #CAF0F8; border: 1px solid #00B4D8; padding: 10px; font-weight: bold; }
+            QPushButton { background-color: #003566; color: #CAF0F8; border: 1px solid #00B4D8; padding: 5px; font-weight: bold; }
         """)
 
     def refresh_ports(self):
