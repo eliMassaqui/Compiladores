@@ -145,7 +145,8 @@ class WandiIDE(QMainWindow):
 
     def save_file(self):
         if not self.current_file:
-            file_path, _ = QFileDialog.getSaveFileName(self, "Código salvo", "", "Python Files (*.py)")
+            caminho_inicial = self.obter_caminho_padrao_wandi()
+            file_path, _ = QFileDialog.getSaveFileName(self, "Código salvo", caminho_inicial, "Python Files (*.py)")
             if file_path: self.current_file = file_path
             else: return
         with open(self.current_file, 'w') as f: f.write(self.code_input.toPlainText())
