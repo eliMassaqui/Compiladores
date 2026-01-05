@@ -69,7 +69,7 @@ class WandiIDE(QMainWindow):
         self.serial_input = QLineEdit()
         self.serial_input.setPlaceholderText("Serial Input - Digite caracteres pra enviar ao Arduino")
         self.serial_input.returnPressed.connect(self.send_serial_data)
-        self.btn_serial_toggle = QPushButton("Conectar")
+        self.btn_serial_toggle = QPushButton("SERIAL")
         self.btn_serial_toggle.clicked.connect(self.toggle_serial)
         serial_layout.addLayout(input_container)
         input_container.addWidget(self.serial_input)
@@ -182,21 +182,21 @@ class WandiIDE(QMainWindow):
 
     def update_serial_status_ui(self, connected):
         if connected:
-            self.btn_serial_toggle.setText("DISCONNECT")
-            self.serial_console.append(f"[SYS]: Connected to {self.compiler.port}")
+            self.btn_serial_toggle.setText("LIGADO")
+            self.serial_console.append(f"[Wandi System]: Conectado com a porta: {self.compiler.port}")
         else:
-            self.btn_serial_toggle.setText("CONNECT")
-            self.serial_console.append("[SYS]: Disconnected.")
+            self.btn_serial_toggle.setText("DESLIGADO")
+            self.serial_console.append("[Wandi System]: Comunicação serial desligada.")
 
     def send_serial_data(self):
         if self.serial_handler and self.serial_handler.isRunning():
             data = self.serial_input.text()
             self.serial_handler.write(data)
-            self.serial_console.append(f"[SENT]: {data}")
+            self.serial_console.append(f"[ENVIADO]: {data}")
             self.serial_input.clear()
 
     def update_serial_console(self, text):
-        self.serial_console.append(f"[RECV]: {text}")
+        self.serial_console.append(f"[RECEBIDO]: {text}")
         self.serial_console.moveCursor(QTextCursor.MoveOperation.End)
 
 # --- SERIAL ENGINE ---
