@@ -10,7 +10,7 @@ import serial.tools.list_ports
 # PyQt6 – Interface gráfica
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTextEdit, QPushButton, QLabel, QProgressBar, QTabWidget, 
-                             QLineEdit, QToolBar, QFileDialog, QComboBox)
+                             QLineEdit, QToolBar, QFileDialog, QComboBox, QStatusBar)
 from PyQt6.QtGui import QTextCursor, QAction, QIcon
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -88,8 +88,6 @@ class WandiIDE(QMainWindow):
         serial_widget.setLayout(serial_layout)
         self.tabs.addTab(serial_widget, "SERIAL MONITOR")
 
-
-
         self.cpp_viewer = QTextEdit()
         self.tabs.addTab(self.cpp_viewer, "WIRING_SOURCE")
         layout.addWidget(self.tabs)
@@ -97,6 +95,12 @@ class WandiIDE(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+
+        # --- FOOTER (STATUS BAR) ---
+        self.footer = QStatusBar()
+        self.setStatusBar(self.footer)
+        self.status_message = QLabel("PRONTO")
+        self.footer.addWidget(self.status_message)
 
     def apply_deep_blue_style(self):
         self.setStyleSheet("""
@@ -109,7 +113,12 @@ class WandiIDE(QMainWindow):
             QTabBar::tab { background: #001D3D; color: #00B4D8; padding: 8px; border: 1px solid #003566; }
             QTabBar::tab:selected { background: #003566; color: white; }
             QPushButton { background-color: #003566; color: #CAF0F8; border: 1px solid #00B4D8; padding: 5px; font-weight: bold; }
+            QStatusBar { background-color: #001D3D; color: #00B4D8; border-top: 1px solid #003566; font-family: 'Consolas'; }
         """)
+
+    def set_footer_dialog(self, text):
+        """Método simples para atualizar o diálogo no rodapé"""
+        self.status_message.setText(f">>: {text}")
 
     def refresh_ports(self):
         self.port_combo.clear()
@@ -117,32 +126,27 @@ class WandiIDE(QMainWindow):
         self.port_combo.addItems(ports)
         if not ports:
             self.status_label.setText("> NO_DEVICE_DETECTED")
+            self.set_footer_dialog("AGUARDANDO CONEXÃO USB...")
         else:
             self.status_label.setText(f"> {len(ports)} PORTAS ENCONTRADAS")
+            self.set_footer_dialog("Seja bem-vindo ao Wandi Studio IDE!")
 
     def update_compiler_port(self, port_name):
         self.compiler.port = port_name
-
+        self.set_footer_dialog(f"PORTA SELECIONADA: {port_name}")
 
      # Gerenciador de arquivos
     def obter_caminho_padrao_wandi(self):
-        """
-        Gera o caminho padrão: Documentos/Wandi Studio/Wandi Code.
-        Cria as pastas caso elas não existam no PC atual.
-        """
-        # os.path.expanduser("~") aponta para C:\Users\NOME_DO_USER
         documentos = os.path.join(os.path.expanduser("~"), "Documents")
         caminho_wandi = os.path.join(documentos, "Wandi Studio", "Wandi Code")
-        
-        # Cria as pastas se não existirem para evitar erro de 'caminho não encontrado'
         if not os.path.exists(caminho_wandi):
             os.makedirs(caminho_wandi)
-            
         return caminho_wandi
 
     def new_file(self):
         self.code_input.clear()
         self.current_file = None
+        self.set_footer_dialog("NOVO ARQUIVO CRIADO")
 
     def open_file(self):
         caminho_inicial = self.obter_caminho_padrao_wandi()
@@ -150,6 +154,7 @@ class WandiIDE(QMainWindow):
         if file_path:
             with open(file_path, 'r') as f: self.code_input.setPlainText(f.read())
             self.current_file = file_path
+            self.set_footer_dialog(f"ARQUIVO CARREGADO: {os.path.basename(file_path)}")
 
     def save_file(self):
         if not self.current_file:
@@ -158,6 +163,7 @@ class WandiIDE(QMainWindow):
             if file_path: self.current_file = file_path
             else: return
         with open(self.current_file, 'w') as f: f.write(self.code_input.toPlainText())
+        self.set_footer_dialog("ALTERAÇÕES SALVAS COM SUCESSO")
 
     def toggle_serial(self):
         if self.serial_handler and self.serial_handler.isRunning():
@@ -170,6 +176,7 @@ class WandiIDE(QMainWindow):
     def start_process(self):
         if not self.compiler.port:
             self.output_monitor.append("[ERR]: Nenhuma porta selecionada!")
+            self.set_footer_dialog("ERRO: SELECIONE UMA PORTA!")
             return
         
         if self.serial_handler and self.serial_handler.isRunning():
@@ -177,13 +184,18 @@ class WandiIDE(QMainWindow):
             self.serial_handler.wait()
             self.update_serial_status_ui(False)
 
+        self.set_footer_dialog("TRADUZINDO E COMPILANDO...")
         self.output_monitor.append(f"[SYS]: Iniciando em {self.compiler.port}...")
         cpp = self.compiler.translate(self.code_input.toPlainText())
         self.cpp_viewer.setText(cpp)
         res = self.compiler.upload(cpp)
         self.output_monitor.append(f"\n[REPORT]:\n{res}")
+        
         if "SUCESSO" in res or "Sketch" in res:
+            self.set_footer_dialog("UPLOAD CONCLUÍDO!")
             self.start_serial_handler()
+        else:
+            self.set_footer_dialog("FALHA NO PROCESSO")
 
     def start_serial_handler(self):
         if self.compiler.port:
@@ -196,9 +208,11 @@ class WandiIDE(QMainWindow):
         if connected:
             self.btn_serial_toggle.setText("LIGADO")
             self.serial_console.append(f"[Wandi System]: Conectado com a porta: {self.compiler.port}")
+            self.set_footer_dialog(f"MONITOR SERIAL ATIVO: {self.compiler.port}")
         else:
             self.btn_serial_toggle.setText("DESLIGADO")
             self.serial_console.append("[Wandi System]: Comunicação serial desligada.")
+            self.set_footer_dialog("SERIAL DESCONECTADO")
 
     def send_serial_data(self):
         if self.serial_handler and self.serial_handler.isRunning():
@@ -265,7 +279,6 @@ class MiniCompiler:
         ]
 
     def translate(self, py_code: str) -> str:
-        # CHAMANDO A LÓGICA DO MÓDULO EXTERNO
         return self.translator.translate(py_code)
 
     def upload(self, cpp_code: str):
