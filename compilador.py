@@ -1,6 +1,6 @@
 import ast
 
-class DeepBlueTranslator:
+class compiladorWandi:
     def __init__(self):
         self.cpp_lines = []
 
@@ -27,7 +27,7 @@ class DeepBlueTranslator:
     def translate(self, py_code: str) -> str:
         try:
             tree = ast.parse(py_code)
-            self.cpp_lines = ["// Gerado via Wandi Studio IDE - DEEP BLUE SYSTEM", ""]
+            self.cpp_lines = ["// Gerado via Wandi Studio IDE - WANDI SYSTEM", ""]
             for node in tree.body:
                 if isinstance(node, ast.FunctionDef):
                     self.cpp_lines.append(f"void {node.name}() {{")

@@ -15,7 +15,7 @@ from PyQt6.QtGui import QTextCursor, QAction, QIcon
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 # IMPORTANDO O TRADUTOR QUE SEPARAMOS
-from translator import DeepBlueTranslator
+from compilador import compiladorWandi
 
 # --- UI ENGINE --- Essa classe é o cérebro visual da IDE
 class WandiIDE(QMainWindow):
@@ -252,7 +252,7 @@ class SerialHandler(QThread):
 class MiniCompiler:
     def __init__(self, port="COM5"):
         self.port = port
-        self.translator = DeepBlueTranslator() # INSTANCIANDO O TRADUTOR MODULAR
+        self.compilador = compiladorWandi() # INSTANCIANDO O TRADUTOR MODULAR
         user_documents = os.path.join(os.path.expanduser("~"), "Documents")
         self.arduino_tools_dir = os.path.join(user_documents, "Wandi Studio", "Engine", "arduino")
         self.sketch_dir = os.path.join(self.arduino_tools_dir, "build_sketch")
@@ -266,7 +266,7 @@ class MiniCompiler:
 
     def translate(self, py_code: str) -> str:
         # CHAMANDO A LÓGICA DO MÓDULO EXTERNO
-        return self.translator.translate(py_code)
+        return self.compilador.translate(py_code)
 
     def upload(self, cpp_code: str):
         cli_bin = self._find_cli()
